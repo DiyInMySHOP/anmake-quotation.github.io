@@ -35,7 +35,7 @@ textarea{resize:vertical;min-height:60px}
 .check{display:flex;gap:8px;align-items:center;margin:10px 0 0;color:var(--ink)}
 .check input{width:auto}
 .preview{overflow-x:auto;padding:0;background:transparent;border:0}
-.paper{width:794px;min-height:1123px;background:#fff;color:#1d2742;margin:0 auto;padding:44px 48px;font-size:14px;line-height:1.45;box-shadow:0 2px 14px rgba(20,30,60,.18);position:relative}
+.paper{width:794px;min-height:1120px;background:#fff;color:#1d2742;margin:0 auto;padding:44px 48px;font-size:14px;line-height:1.45;box-shadow:0 2px 14px rgba(20,30,60,.18);position:relative}
 .paper *{color:inherit}
 .p-head{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #c8372d;padding-bottom:14px}
 .p-shop{font-size:26px;font-weight:700;line-height:1.1}
@@ -164,13 +164,18 @@ $("#add").onclick=()=>{S.items.push({d:"",s:"",q:1,p:0});renderItems();render()}
 
 $("#pdf").onclick=async()=>{
   const b=$("#pdf");b.disabled=true;b.textContent="กำลังสร้าง PDF...";
+  const wrap=document.createElement("div");
+  wrap.style.cssText="position:fixed;left:-10000px;top:0;width:794px;background:#fff";
+  const clone=$("#paper").cloneNode(true);
+  clone.style.cssText="box-shadow:none;margin:0;width:794px;min-height:1120px";
+  wrap.appendChild(clone);document.body.appendChild(wrap);
   try{
     await document.fonts.ready;
     await html2pdf().set({margin:0,filename:`ใบเสนอราคา_${S.no}_${S.cust||"ลูกค้า"}.pdf`,image:{type:"jpeg",quality:.98},
-      html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0,windowWidth:794},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},pagebreak:{mode:["css","legacy"]}}).from($("#paper")).save();
+      html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0,x:0,y:0,windowWidth:794,backgroundColor:"#ffffff"},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},pagebreak:{mode:["css"]}}).from(clone).save();
     const n=(+localStorage.getItem("anmake-no")||0)+1;localStorage.setItem("anmake-no",n);
   }catch(e){alert("สร้าง PDF ไม่สำเร็จ ลองใหม่อีกครั้ง หรือกด Ctrl+P แล้วเลือก Save as PDF")}
-  b.disabled=false;b.textContent="ดาวน์โหลด PDF"};
+  wrap.remove();b.disabled=false;b.textContent="ดาวน์โหลด PDF"};
 
 renderItems();render();
 </script>
