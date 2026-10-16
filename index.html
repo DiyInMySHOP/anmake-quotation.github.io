@@ -31,6 +31,19 @@ textarea{resize:vertical;min-height:60px}
 .item .top{display:flex;gap:8px;align-items:center}
 .btn{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:inherit;padding:8px 12px}
 .btn.primary{background:var(--thread);border-color:var(--thread);color:#fff;font-weight:700;width:100%;padding:12px;font-size:16px}
+.bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 8px}
+.btn.save{background:var(--ink);color:var(--panel);border-color:var(--ink);font-weight:700}
+details.saved{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--field)}
+details.saved summary{cursor:pointer;font-weight:500}
+.sv{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.sv:first-of-type{margin-top:8px}
+.sv small{color:var(--muted)}
+.sv.cur{background:rgba(200,55,45,.08);margin:0 -6px;padding:8px 6px;border-radius:6px}
+.sv .acts{display:flex;gap:6px;flex:none}
+.sv .btn{padding:4px 10px;font-size:13px}
+.bk{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.bk .btn{font-size:13px;padding:5px 10px}
+#msg{min-height:20px;font-size:13px;color:var(--thread);margin-top:6px}
 .btn.del{color:var(--thread);padding:6px 10px;flex:none}
 .check{display:flex;gap:8px;align-items:center;margin:10px 0 0;color:var(--ink)}
 .check input{width:auto}
@@ -69,6 +82,10 @@ table.t{width:100%;border-collapse:collapse;margin-top:6px}
 <form class="panel form" id="form" onsubmit="return false">
   <h1>ใบเสนอราคา งานปักผ้า</h1>
   <p class="sub">กรอกข้อมูล ตัวอย่างใบเสนอราคาจะอัปเดตทางขวาทันที</p>
+  <div class="bar"><button type="button" class="btn save" id="save">บันทึกใบนี้</button><button type="button" class="btn" id="new">+ ใบใหม่</button></div>
+  <div id="msg" role="status"></div>
+  <details class="saved" id="savedBox"><summary>ใบที่บันทึกไว้ (<span id="cnt">0</span>)</summary><div id="list"></div>
+    <div class="bk"><button type="button" class="btn" id="exp">สำรองข้อมูล (ไฟล์)</button><button type="button" class="btn" id="imp">นำเข้าข้อมูล</button><input type="file" id="file" accept=".json,application/json" hidden></div></details>
 
   <h2>ข้อมูลร้าน</h2>
   <label>ชื่อร้าน</label><input data-k="shop" value="แอนเมค">
@@ -89,6 +106,7 @@ table.t{width:100%;border-collapse:collapse;margin-top:6px}
   <h2>สรุปยอด</h2>
   <div class="row"><div><label>ส่วนลด (บาท)</label><input type="number" min="0" data-k="disc" value="0"></div><div><label>มัดจำ (%)</label><input type="number" min="0" max="100" data-k="dep" value="50"></div></div>
   <label class="check"><input type="checkbox" data-k="vat"> คิด VAT 7%</label>
+  <label class="check"><input type="checkbox" data-k="urgent"> งานด่วน (ชำระเต็มจำนวน)</label>
 
   <h2>หมายเหตุและเงื่อนไข</h2>
   <textarea data-k="notes" rows="5"></textarea>
@@ -102,14 +120,14 @@ table.t{width:100%;border-collapse:collapse;margin-top:6px}
 
 <script>
 const DEF_NOTES="• ชำระมัดจำก่อนเริ่มผลิต ส่วนที่เหลือชำระเมื่อรับงาน\n• ระยะเวลาผลิตประมาณ 7-10 วันทำการ หลังยืนยันแบบและชำระมัดจำ\n• ราคานี้รวมค่าทำตัวอย่างปัก (ถ้ามี) ตามที่ระบุในรายการ\n• งานที่ปักตามแบบที่ลูกค้ายืนยันแล้ว ไม่รับคืน/เปลี่ยน";
-const S={shop:"แอนเมค",addr:"",tel:"",tax:"",cust:"",custInfo:"",custTax:"",no:"",date:"",valid:15,disc:0,dep:50,vat:false,notes:DEF_NOTES,
+const S={shop:"แอนเมค",addr:"",tel:"",tax:"",cust:"",custInfo:"",custTax:"",no:"",date:"",valid:15,disc:0,dep:50,vat:false,urgent:false,notes:DEF_NOTES,
   items:[{d:"ปักโลโก้อกซ้าย",s:"ขนาด 8×8 ซม.",q:50,p:35}]};
 const KEEP=["shop","addr","tel","tax","notes"];
 const $=s=>document.querySelector(s);
 const today=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 try{const sv=JSON.parse(localStorage.getItem("anmake-quote")||"{}");KEEP.forEach(k=>{if(sv[k]!=null)S[k]=sv[k]})}catch(e){}
 S.date=today();
-try{let n=+localStorage.getItem("anmake-no")||0;S.no="AM"+S.date.slice(0,4)+"-"+String(n+1).padStart(3,"0")}catch(e){S.no="AM"+S.date.slice(0,4)+"-001"}
+S.no=nextNo();
 
 const fmt=n=>(+n||0).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -123,26 +141,26 @@ function bahtText(n){
   const[b,st]=n.toFixed(2).split(".");let r=(+b?th(b)+"บาท":"");
   r+= +st? grp(st)+"สตางค์":"ถ้วน";return r}
 
-function calc(){
-  const sub=S.items.reduce((a,i)=>a+(+i.q||0)*(+i.p||0),0),disc=Math.min(+S.disc||0,sub),after=sub-disc;
-  const vat=S.vat?after*0.07:0,total=after+vat,dep=total*(+S.dep||0)/100;return{sub,disc,vat,total,dep,rest:total-dep}}
+function calc(q=S){
+  const sub=q.items.reduce((a,i)=>a+(+i.q||0)*(+i.p||0),0),disc=Math.min(+q.disc||0,sub),after=sub-disc;
+  const vat=q.vat?after*0.07:0,total=after+vat,dep=total*(q.urgent?100:(+q.dep||0))/100;return{sub,disc,vat,total,dep,rest:total-dep}}
 
 function render(){
-  const c=calc();
+  const c=calc();$("[data-k=dep]").disabled=S.urgent;
   const rows=S.items.map((i,n)=>`<tr><td class="c">${n+1}</td><td>${esc(i.d)||"-"}${i.s?`<small>${esc(i.s)}</small>`:""}</td><td class="c">${+i.q||0}</td><td class="n">${fmt(i.p)}</td><td class="n">${fmt((+i.q||0)*(+i.p||0))}</td></tr>`).join("");
   $("#paper").innerHTML=`
   <div class="p-head"><div class="p-shop">${esc(S.shop)||"ชื่อร้าน"}<small>${esc(S.addr).replace(/\n/g,"<br>")}${S.tel?`<br>โทร ${esc(S.tel)}`:""}${S.tax?`<br>เลขประจำตัวผู้เสียภาษี ${esc(S.tax)}`:""}</small></div>
-    <div class="p-title"><b>ใบเสนอราคา</b><div>เลขที่ ${esc(S.no)}</div><div>วันที่ ${thaiDate(S.date)}</div>${+S.valid?`<div>ยืนราคา ${+S.valid} วัน</div>`:""}</div></div>
+    <div class="p-title"><b>ใบเสนอราคา</b><div>เลขที่ ${esc(S.no)}</div><div>วันที่ ${thaiDate(S.date)}</div>${+S.valid?`<div>ยืนราคา ${+S.valid} วัน</div>`:""}${S.urgent?`<div style="color:#c8372d;font-weight:700;font-size:15px">งานด่วน</div>`:""}</div></div>
   <div class="p-meta"><div><div class="lbl">เสนอราคาให้</div><div class="box"><b>${esc(S.cust)||"-"}</b>\n${esc(S.custInfo)}${S.custTax?`\nเลขประจำตัวผู้เสียภาษี ${esc(S.custTax)}`:""}</div></div>
-    <div><div class="lbl">ประเภทงาน</div><div class="box">งานปักผ้า (Embroidery)</div></div></div>
+    <div><div class="lbl">ประเภทงาน</div><div class="box">งานปักผ้า (Embroidery)${S.urgent?"\n<b style=\"color:#c8372d\">งานด่วน</b>":""}</div></div></div>
   <table class="t"><thead><tr><th style="width:40px;text-align:center">ลำดับ</th><th>รายการ</th><th style="width:70px;text-align:center">จำนวน</th><th style="width:100px;text-align:right">ราคา/หน่วย</th><th style="width:110px;text-align:right">รวม (บาท)</th></tr></thead><tbody>${rows}</tbody></table>
   <div class="p-sum"><div class="p-words">ตัวอักษร: <b>${bahtText(c.total)}</b></div>
     <div class="p-tot"><div><span>รวมเป็นเงิน</span><span>${fmt(c.sub)}</span></div>
     ${c.disc?`<div><span>ส่วนลด</span><span>-${fmt(c.disc)}</span></div>`:""}
     ${S.vat?`<div><span>ภาษีมูลค่าเพิ่ม 7%</span><span>${fmt(c.vat)}</span></div>`:""}
     <div class="g"><span>ยอดสุทธิ</span><span>${fmt(c.total)}</span></div>
-    ${+S.dep?`<div><span>มัดจำ ${+S.dep}%</span><span>${fmt(c.dep)}</span></div><div><span>ชำระเมื่อรับงาน</span><span>${fmt(c.rest)}</span></div>`:""}</div></div>
-  ${S.notes.trim()?`<div class="p-notes"><b>หมายเหตุ / เงื่อนไข</b>${esc(S.notes)}</div>`:""}
+    ${S.urgent?`<div><span>งานด่วน ชำระเต็มจำนวน</span><span>${fmt(c.total)}</span></div>`:+S.dep?`<div><span>มัดจำ ${+S.dep}%</span><span>${fmt(c.dep)}</span></div><div><span>ชำระเมื่อรับงาน</span><span>${fmt(c.rest)}</span></div>`:""}</div></div>
+  ${S.notes.trim()||S.urgent?`<div class="p-notes"><b>หมายเหตุ / เงื่อนไข</b>${S.urgent?"• งานด่วน: ชำระเต็มจำนวนก่อนเริ่มผลิต\n":""}${esc(S.notes)}</div>`:""}
   <div class="p-sign"><div>ผู้สั่งซื้อ / วันที่</div><div>ผู้เสนอราคา ${esc(S.shop)} / วันที่</div></div>`}
 
 function renderItems(){
@@ -173,11 +191,46 @@ $("#pdf").onclick=async()=>{
     await document.fonts.ready;
     await html2pdf().set({margin:0,filename:`ใบเสนอราคา_${S.no}_${S.cust||"ลูกค้า"}.pdf`,image:{type:"jpeg",quality:.98},
       html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0,x:0,y:0,windowWidth:794,backgroundColor:"#ffffff"},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},pagebreak:{mode:["css"]}}).from(clone).save();
-    const n=(+localStorage.getItem("anmake-no")||0)+1;localStorage.setItem("anmake-no",n);
+    if(S.cust.trim())saveQuote(true);
   }catch(e){alert("สร้าง PDF ไม่สำเร็จ ลองใหม่อีกครั้ง หรือกด Ctrl+P แล้วเลือก Save as PDF")}
   wrap.remove();b.disabled=false;b.textContent="ดาวน์โหลด PDF"};
 
-renderItems();render();
+
+function getList(){try{return JSON.parse(localStorage.getItem("anmake-list")||"[]")}catch(e){return[]}}
+function putList(l){try{localStorage.setItem("anmake-list",JSON.stringify(l));return true}catch(e){msg("บันทึกไม่ได้ พื้นที่เบราว์เซอร์อาจเต็มหรือปิดการจดจำข้อมูล");return false}}
+function nextNo(){const y=(S.date||today()).slice(0,4),pre="AM"+y+"-";
+  const mx=getList().map(q=>q.no||"").filter(n=>n.startsWith(pre)).map(n=>parseInt(n.slice(pre.length))||0);
+  return pre+String((mx.length?Math.max(...mx):0)+1).padStart(3,"0")}
+let mt;function msg(t){const m=$("#msg");m.textContent=t;clearTimeout(mt);mt=setTimeout(()=>m.textContent="",4000)}
+function syncForm(){document.querySelectorAll("[data-k]").forEach(el=>{const k=el.dataset.k;if(el.type==="checkbox")el.checked=!!S[k];else el.value=S[k]??""});renderItems();render();drawList()}
+function saveQuote(silent){
+  if(!S.cust.trim()){if(!silent){msg("ใส่ชื่อลูกค้าก่อนบันทึก");document.querySelector("[data-k=cust]").focus()}return}
+  const l=getList(),q=JSON.parse(JSON.stringify(S));q.savedAt=Date.now();
+  const i=l.findIndex(x=>x.no===q.no);const upd=i>=0;if(upd)l[i]=q;else l.push(q);
+  if(putList(l)){drawList();msg(silent?"":(upd?"อัปเดตใบเสนอราคา "+q.no+" แล้ว":"บันทึกใบเสนอราคา "+q.no+" แล้ว"))}}
+function openQuote(no){const q=getList().find(x=>x.no===no);if(!q)return;
+  const keep={};KEEP.forEach(k=>keep[k]=S[k]);
+  Object.assign(S,{custTax:"",urgent:false},JSON.parse(JSON.stringify(q)));delete S.savedAt;
+  syncForm();window.scrollTo({top:0,behavior:"smooth"});msg("เปิด "+no+" แล้ว แก้ไขแล้วกด \"บันทึกใบนี้\" เพื่ออัปเดต")}
+function newQuote(){
+  Object.assign(S,{cust:"",custInfo:"",custTax:"",date:today(),valid:15,disc:0,dep:50,vat:false,urgent:false,items:[{d:"",s:"",q:1,p:0}]});
+  S.no=nextNo();syncForm();msg("เริ่มใบใหม่ "+S.no)}
+function drawList(){
+  const l=getList().sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));$("#cnt").textContent=l.length;
+  $("#list").innerHTML=l.length?l.map(q=>`<div class="sv${q.no===S.no?" cur":""}"><div><b>${esc(q.no)}</b> ${esc(q.cust)}<br><small>${thaiDate(q.date)} • ${fmt(calc(q).total)} บาท${q.urgent?" • ด่วน":""}</small></div><div class="acts"><button type="button" class="btn" data-open="${esc(q.no)}">เปิด</button><button type="button" class="btn del" data-rm="${esc(q.no)}">ลบ</button></div></div>`).join(""):'<p class="sub" style="margin:8px 0 0">ยังไม่มีใบที่บันทึกไว้</p>'}
+$("#save").onclick=()=>saveQuote(false);
+$("#new").onclick=newQuote;
+$("#list").addEventListener("click",e=>{const o=e.target.dataset.open,r=e.target.dataset.rm;
+  if(o)openQuote(o);
+  if(r&&confirm("ลบใบเสนอราคา "+r+" ?")){putList(getList().filter(x=>x.no!==r));drawList()}});
+$("#exp").onclick=()=>{const b=new Blob([JSON.stringify(getList(),null,1)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="anmake-quotes-"+today()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1e3)};
+$("#imp").onclick=()=>$("#file").click();
+$("#file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{const arr=JSON.parse(await f.text());if(!Array.isArray(arr))throw 0;
+    const l=getList();arr.forEach(q=>{if(q&&q.no&&Array.isArray(q.items)){const i=l.findIndex(x=>x.no===q.no);if(i>=0)l[i]=q;else l.push(q)}});
+    if(putList(l)){drawList();msg("นำเข้าข้อมูลแล้ว")}}catch(err){msg("ไฟล์ไม่ถูกต้อง")}};
+renderItems();render();drawList();
 </script>
 </body>
 </html>
