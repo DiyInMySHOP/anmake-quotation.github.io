@@ -48,7 +48,7 @@ details.saved summary{cursor:pointer;font-weight:500}
 .check{display:flex;gap:8px;align-items:center;margin:10px 0 0;color:var(--ink)}
 .check input{width:auto}
 .preview{overflow-x:auto;padding:0;background:transparent;border:0}
-.paper{width:794px;min-height:1120px;background:#fff;color:#1d2742;margin:0 auto;padding:44px 48px;font-size:14px;line-height:1.45;box-shadow:0 2px 14px rgba(20,30,60,.18);position:relative}
+.paper{width:794px;min-height:1120px;background:#fff;color:#1d2742;margin:0 auto;padding:44px 48px;font-size:14px;line-height:1.45;box-shadow:0 2px 14px rgba(20,30,60,.18);position:relative;display:flex;flex-direction:column}
 .paper *{color:inherit}
 .p-head{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #c8372d;padding-bottom:14px}
 .p-shop{font-size:26px;font-weight:700;line-height:1.1}
@@ -71,9 +71,15 @@ table.t{width:100%;border-collapse:collapse;margin-top:6px}
 .p-tot{width:280px}
 .p-tot div{display:flex;justify-content:space-between;padding:4px 0}
 .p-tot .g{border-top:2px solid #1d2742;margin-top:4px;padding-top:8px;font-size:17px;font-weight:700}
-.p-notes{margin-top:18px;font-size:13px;white-space:pre-line}
+.p-notes{margin-top:14px;font-size:12px;line-height:1.4;white-space:pre-line;break-inside:avoid}
 .p-notes b{display:block;margin-bottom:2px}
-.p-sign{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:56px;text-align:center;font-size:13px}
+.p-sign{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:auto;padding-top:40px;break-inside:avoid;text-align:center;font-size:13px}
+.paper.tight{padding:28px 40px;font-size:13px;line-height:1.35}
+.tight .p-meta{margin:10px 0}
+.tight .p-meta .box{min-height:64px;padding:7px 10px}
+.tight .t td{padding:5px 8px}
+.tight .p-notes{font-size:11.5px;line-height:1.3;margin-top:10px}
+.tight .p-sign{padding-top:26px}
 .p-sign div{border-top:1px solid #1d2742;padding-top:6px}
 </style>
 </head>
@@ -145,6 +151,7 @@ function calc(q=S){
   const sub=q.items.reduce((a,i)=>a+(+i.q||0)*(+i.p||0),0),disc=Math.min(+q.disc||0,sub),after=sub-disc;
   const vat=q.vat?after*0.07:0,total=after+vat,dep=total*(q.urgent?100:(+q.dep||0))/100;return{sub,disc,vat,total,dep,rest:total-dep}}
 
+function fit(el){el.classList.remove("tight");if(el.scrollHeight>1122)el.classList.add("tight")}
 function render(){
   const c=calc();$("[data-k=dep]").disabled=S.urgent;
   const rows=S.items.map((i,n)=>`<tr><td class="c">${n+1}</td><td>${esc(i.d)||"-"}${i.s?`<small>${esc(i.s)}</small>`:""}</td><td class="c">${+i.q||0}</td><td class="n">${fmt(i.p)}</td><td class="n">${fmt((+i.q||0)*(+i.p||0))}</td></tr>`).join("");
@@ -161,7 +168,7 @@ function render(){
     <div class="g"><span>ยอดสุทธิ</span><span>${fmt(c.total)}</span></div>
     ${S.urgent?`<div><span>งานด่วน ชำระเต็มจำนวน</span><span>${fmt(c.total)}</span></div>`:+S.dep?`<div><span>มัดจำ ${+S.dep}%</span><span>${fmt(c.dep)}</span></div><div><span>ชำระเมื่อรับงาน</span><span>${fmt(c.rest)}</span></div>`:""}</div></div>
   ${S.notes.trim()||S.urgent?`<div class="p-notes"><b>หมายเหตุ / เงื่อนไข</b>${S.urgent?"• งานด่วน: ชำระเต็มจำนวนก่อนเริ่มผลิต\n":""}${esc(S.notes)}</div>`:""}
-  <div class="p-sign"><div>ผู้สั่งซื้อ / วันที่</div><div>ผู้เสนอราคา ${esc(S.shop)} / วันที่</div></div>`}
+  <div class="p-sign"><div>ผู้สั่งซื้อ / วันที่</div><div>ผู้เสนอราคา ${esc(S.shop)} / วันที่</div></div>`;fit($("#paper"))}
 
 function renderItems(){
   $("#items").innerHTML=S.items.map((i,n)=>`<div class="item" data-n="${n}">
@@ -186,7 +193,7 @@ $("#pdf").onclick=async()=>{
   wrap.style.cssText="position:fixed;left:-10000px;top:0;width:794px;background:#fff";
   const clone=$("#paper").cloneNode(true);
   clone.style.cssText="box-shadow:none;margin:0;width:794px;min-height:1120px";
-  wrap.appendChild(clone);document.body.appendChild(wrap);
+  wrap.appendChild(clone);document.body.appendChild(wrap);fit(clone);
   try{
     await document.fonts.ready;
     await html2pdf().set({margin:0,filename:`ใบเสนอราคา_${S.no}_${S.cust||"ลูกค้า"}.pdf`,image:{type:"jpeg",quality:.98},
